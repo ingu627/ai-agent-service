@@ -207,47 +207,37 @@ const ChatBot: React.FC = () => {
   }, [chatState.inputValue]);
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-br from-notion-gray-25 via-white to-notion-gray-50">
-      {/* Header with glassmorphism effect */}
-      <div className="glass border-b border-white/20 backdrop-blur-md px-6 py-5 shadow-soft">
-        <div className="flex items-center justify-between max-w-6xl mx-auto">
-          <div className="flex items-center space-x-3">
-            <div className="relative">
-              <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center shadow-medium">
-                <Sparkles className="w-5 h-5 text-white" />
-              </div>
-              <div className="absolute -inset-1 bg-gradient-to-r from-primary-500 to-primary-700 rounded-xl blur opacity-25 animate-pulse"></div>
-            </div>
-            <div>
-              <h1 className="text-xl font-semibold text-notion-gray-900 tracking-tight">AI Agent</h1>
-              <p className="text-xs text-notion-gray-500 mt-0.5">Powered by Hyunseok Jung</p>
-            </div>
+    <div className="flex flex-col h-screen bg-white">
+      {/* Header */}
+      <div className="border-b border-notion-gray-200 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Sparkles className="w-5 h-5 text-purple-600" />
+            <h1 className="text-lg font-medium text-notion-gray-800">AI Agent</h1>
             {chatState.messages.length > 0 && (
-              <div className="animate-scale-in">
-                <span className="text-xs font-medium text-notion-gray-600 bg-notion-gray-100 px-3 py-1.5 rounded-full">
-                  {chatState.messages.length} 메시지
-                </span>
-              </div>
+              <span className="text-xs text-notion-gray-400 bg-notion-gray-100 px-2 py-1 rounded-full">
+                {chatState.messages.length} 메시지
+              </span>
             )}
           </div>
 
-          <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-4">
             {/* 대화 관리 버튼들 */}
             {chatState.messages.length > 0 && (
-              <div className="flex items-center space-x-2 animate-fade-in">
+              <div className="flex items-center space-x-2">
                 <button
                   onClick={handleExportChat}
-                  className="p-2.5 text-notion-gray-500 hover:text-notion-gray-700 hover:bg-white/60 rounded-xl transition-all duration-200 hover-lift group"
+                  className="p-2 text-notion-gray-500 hover:text-notion-gray-700 hover:bg-notion-gray-100 rounded-md transition-colors"
                   title="대화 내보내기 (Ctrl/Cmd + E)"
                 >
-                  <Download className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                  <Download className="w-4 h-4" />
                 </button>
                 <button
                   onClick={handleClearChat}
-                  className={`p-2.5 rounded-xl transition-all duration-200 hover-lift ${
+                  className={`p-2 rounded-md transition-colors ${
                     showClearConfirm
-                      ? 'text-red-600 bg-red-50 hover:bg-red-100 shadow-medium'
-                      : 'text-notion-gray-500 hover:text-red-600 hover:bg-white/60'
+                      ? 'text-red-600 bg-red-100 hover:bg-red-200'
+                      : 'text-notion-gray-500 hover:text-red-600 hover:bg-notion-gray-100'
                   }`}
                   title={showClearConfirm ? '정말 삭제하시겠습니까?' : '대화 삭제 (Ctrl/Cmd + Backspace)'}
                 >
@@ -256,134 +246,84 @@ const ChatBot: React.FC = () => {
               </div>
             )}
 
-            {/* API 상태 표시 - 더 세련된 디자인 */}
-            <div className="flex items-center space-x-4 text-xs">
+            {/* API 상태 표시 */}
+            <div className="flex items-center space-x-4 text-xs text-notion-gray-500">
               {hasApiKeys ? (
-                <div className="flex items-center space-x-4 bg-white/40 backdrop-blur-sm px-4 py-2 rounded-full border border-white/30">
-                  <div className="flex items-center space-x-1.5">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                    <span className="font-medium text-notion-gray-700">AI 연결됨</span>
+                <>
+                  <div className="flex items-center space-x-1">
+                    <Zap className="w-3 h-3 text-green-500" />
+                    <span>AI 연결됨</span>
                   </div>
-                  <div className="w-px h-3 bg-notion-gray-300"></div>
-                  <div className="flex items-center space-x-1.5">
+                  <div className="flex items-center space-x-1">
                     <Search className="w-3 h-3 text-blue-500" />
-                    <span className="text-notion-gray-600">검색 가능</span>
+                    <span>검색 가능</span>
                   </div>
-                  <div className="w-px h-3 bg-notion-gray-300"></div>
-                  <div className="flex items-center space-x-1.5">
-                    <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
-                    <span className="text-notion-gray-600 font-mono text-xs">{currentModel}</span>
+                  <div className="flex items-center space-x-1">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                    <span>{currentModel}</span>
                   </div>
-                </div>
+                </>
               ) : (
-                <div className="flex items-center space-x-2 bg-red-50 px-4 py-2 rounded-full border border-red-200">
-                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                  <span className="text-red-700 font-medium">API 키 필요</span>
-                </div>
+                <>
+                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  <span>API 키 필요</span>
+                </>
               )}
             </div>
           </div>
         </div>
 
-        {/* 키보드 단축키 도움말 - 더 세련된 디자인 */}
-        <div className="mt-4 max-w-6xl mx-auto">
-          <div className="flex items-center justify-center space-x-6 text-xs text-notion-gray-500">
-            <div className="flex items-center space-x-1">
-              <span>단축키:</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <kbd className="bg-white/60 px-2 py-1 rounded-md font-mono text-xs border border-notion-gray-200 shadow-sm">Ctrl+E</kbd>
-              <span>내보내기</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <kbd className="bg-white/60 px-2 py-1 rounded-md font-mono text-xs border border-notion-gray-200 shadow-sm">Ctrl+⌫</kbd>
-              <span>삭제</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <kbd className="bg-white/60 px-2 py-1 rounded-md font-mono text-xs border border-notion-gray-200 shadow-sm">Enter</kbd>
-              <span>전송</span>
-            </div>
-          </div>
+        {/* 키보드 단축키 도움말 */}
+        <div className="mt-2 text-xs text-notion-gray-400">
+          <span>단축키: </span>
+          <span className="bg-notion-gray-100 px-1 rounded">Ctrl+E</span> 내보내기 •
+          <span className="bg-notion-gray-100 px-1 rounded ml-1">Ctrl+⌫</span> 삭제 •
+          <span className="bg-notion-gray-100 px-1 rounded ml-1">Enter</span> 전송
         </div>
       </div>
 
-      {/* Messages Container - 개선된 스크롤 영역 */}
-      <div className="flex-1 overflow-y-auto px-6 py-6">
-        <div className="max-w-4xl mx-auto">
+      {/* Messages Container */}
+      <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="max-w-3xl mx-auto">
           {chatState.messages.length === 0 ? (
             <WelcomeMessage onSuggestionClick={handleSuggestionClick} />
           ) : (
-            <div className="space-y-6">
-              {chatState.messages.map((message, index) => (
-                <div key={message.id} className="animate-slide-up" style={{ animationDelay: `${index * 0.1}s` }}>
-                  <MessageBubble message={message} />
-                </div>
+            <div className="space-y-4">
+              {chatState.messages.map((message) => (
+                <MessageBubble key={message.id} message={message} />
               ))}
-              {chatState.isLoading && (
-                <div className="animate-fade-in">
-                  <TypingIndicator />
-                </div>
-              )}
+              {chatState.isLoading && <TypingIndicator />}
             </div>
           )}
           <div ref={messagesEndRef} />
         </div>
       </div>
 
-      {/* Input Area - 글래스모피즘과 더 나은 시각적 효과 */}
-      <div className="glass border-t border-white/20 backdrop-blur-md px-6 py-6 shadow-large">
-        <div className="max-w-4xl mx-auto">
+      {/* Input Area */}
+      <div className="border-t border-notion-gray-200 px-6 py-4">
+        <div className="max-w-3xl mx-auto">
           <form onSubmit={handleSubmit} className="relative">
-            <div className="relative group">
-              <div className={`flex items-end space-x-4 bg-white/80 backdrop-blur-sm rounded-2xl p-4 border transition-all duration-300 glow focus-ring ${
-                chatState.isLoading 
-                  ? 'border-accent-500/30 shadow-medium' 
-                  : 'border-notion-gray-200 hover:border-primary-300 hover:shadow-medium'
-              }`}>
-                <div className="flex-1 relative">
-                  <textarea
-                    ref={inputRef}
-                    value={chatState.inputValue}
-                    onChange={(e) => setChatState(prev => ({ ...prev, inputValue: e.target.value }))}
-                    onKeyDown={handleKeyDown}
-                    onFocus={() => setIsInputFocused(true)}
-                    onBlur={() => setIsInputFocused(false)}
-                    placeholder="AI 에이전트와 대화하세요... ✨"
-                    className="w-full bg-transparent border-none outline-none resize-none text-notion-gray-800 placeholder-notion-gray-400 text-sm leading-6 font-medium"
-                    rows={1}
-                    style={{ minHeight: '24px', maxHeight: '120px' }}
-                    disabled={chatState.isLoading}
-                  />
-                  <div className="absolute bottom-2 right-0 text-xs text-notion-gray-400">
-                    <span className="opacity-0 group-hover:opacity-100 transition-opacity">
-                      {isInputFocused ? 'Enter로 전송, Shift+Enter로 줄바꿈' : ''}
-                    </span>
-                  </div>
-                </div>
-                <button
-                  type="submit"
-                  disabled={!chatState.inputValue.trim() || chatState.isLoading}
-                  className={`flex-shrink-0 p-3 rounded-xl transition-all duration-200 hover-lift ${
-                    !chatState.inputValue.trim() || chatState.isLoading
-                      ? 'bg-notion-gray-200 text-notion-gray-400 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-medium hover:shadow-large hover:from-primary-600 hover:to-primary-700'
-                  }`}
-                >
-                  <Send className={`w-4 h-4 transition-transform ${chatState.isLoading ? 'animate-pulse' : 'group-hover:scale-110'}`} />
-                </button>
-              </div>
-
-              {/* 입력창 하단 상태 표시 */}
-              {chatState.isLoading && (
-                <div className="absolute -bottom-8 left-4 flex items-center space-x-2 text-xs text-notion-gray-500 animate-fade-in">
-                  <div className="typing-dots">
-                    <div></div>
-                    <div></div>
-                    <div></div>
-                  </div>
-                  <span>AI가 답변을 생성하고 있습니다...</span>
-                </div>
-              )}
+            <div className="flex items-end space-x-3 bg-notion-gray-50 rounded-lg p-3 border border-notion-gray-200 focus-within:border-purple-300 focus-within:bg-white transition-colors">
+              <textarea
+                ref={inputRef}
+                value={chatState.inputValue}
+                onChange={(e) => setChatState(prev => ({ ...prev, inputValue: e.target.value }))}
+                onKeyDown={handleKeyDown}
+                onFocus={() => setIsInputFocused(true)}
+                onBlur={() => setIsInputFocused(false)}
+                placeholder="AI 에이전트와 대화하세요... (Enter로 전송, Shift+Enter로 줄바꿈)"
+                className="flex-1 bg-transparent border-none outline-none resize-none text-notion-gray-800 placeholder-notion-gray-400 text-sm leading-5"
+                rows={1}
+                style={{ minHeight: '20px', maxHeight: '120px' }}
+                disabled={chatState.isLoading}
+              />
+              <button
+                type="submit"
+                disabled={!chatState.inputValue.trim() || chatState.isLoading}
+                className="flex-shrink-0 p-2 rounded-md bg-purple-600 text-white disabled:bg-notion-gray-300 disabled:cursor-not-allowed hover:bg-purple-700 transition-colors"
+              >
+                <Send className="w-4 h-4" />
+              </button>
             </div>
           </form>
         </div>
