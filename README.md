@@ -2,7 +2,7 @@
 
 ![AI Agent UI](imgs/ui_agent.png)
 
-OpenAI GPT와 실시간 웹 검색이 통합된 차세대 AI 어시스턴트입니다. Notion AI 스타일의 세련된 UI와 강력한 기능을 제공합니다.
+OpenAI GPT와 실시간 웹 검색이 통합된 차세대 AI 어시스턴트입니다.
 
 ## ✨ 주요 기능
 
