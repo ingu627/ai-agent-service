@@ -1,11 +1,24 @@
 import OpenAI from 'openai';
 import axios from 'axios';
 
-// OpenAI 클라이언트 초기화
-const openai = new OpenAI({
-  apiKey: process.env.REACT_APP_OPENAI_API_KEY,
-  dangerouslyAllowBrowser: true // 클라이언트에서 사용하기 위해 필요
-});
+let openaiClient: OpenAI | null = null;
+
+const getOpenAIClient = () => {
+  if (!openaiClient) {
+    const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
+
+    if (!apiKey) {
+      throw new Error('OpenAI API 키가 설정되지 않았습니다. 환경변수를 확인하세요.');
+    }
+
+    openaiClient = new OpenAI({
+      apiKey,
+      dangerouslyAllowBrowser: true
+    });
+  }
+
+  return openaiClient;
+};
 
 // Tavily Search API 인터페이스
 interface TavilySearchResult {
@@ -61,6 +74,30 @@ export const generateAIResponse = async (
   messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>,
   useSearch: boolean = false
 ): Promise<string> => {
+  const backendUrl = process.env.REACT_APP_BACKEND_URL;
+
+  if (backendUrl) {
+    const response = await retryWithBackoff(async () => {
+      const { data } = await axios.post(
+        `${backendUrl.replace(/\/$/, '')}/chat`,
+        { messages, useSearch },
+        { timeout: 20000 }
+      );
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      return data?.reply || data?.response || data?.message || '';
+    }, 3, 1500);
+
+    if (!response) {
+      throw new Error('백엔드에서 유효한 응답을 받지 못했습니다.');
+    }
+
+    return response;
+  }
+
   return retryWithBackoff(async () => {
     let systemPrompt = `당신은 도움이 되고 지식이 풍부한 AI 어시스턴트입니다. 
 사용자의 질문에 정확하고 유용한 답변을 제공하세요. 
@@ -91,6 +128,8 @@ export const generateAIResponse = async (
     // 환경변수에서 모델명 가져오기 (기본값: gpt-3.5-turbo)
     const modelName = process.env.REACT_APP_LLM_MODEL || 'gpt-3.5-turbo';
 
+    const openai = getOpenAIClient();
+
     const completion = await openai.chat.completions.create({
       model: modelName,
       messages: [
@@ -111,6 +150,10 @@ export const generateAIResponseStream = async (
   useSearch: boolean = false,
   onChunk?: (chunk: string) => void
 ): Promise<string> => {
+  if (process.env.REACT_APP_BACKEND_URL) {
+    throw new Error('백엔드 연동 모드에서는 스트리밍 응답이 아직 지원되지 않습니다.');
+  }
+
   return retryWithBackoff(async () => {
     let systemPrompt = `당신은 도움이 되고 지식이 풍부한 AI 어시스턴트입니다. 
 사용자의 질문에 정확하고 유용한 답변을 제공하세요. 
@@ -139,6 +182,8 @@ export const generateAIResponseStream = async (
     }
 
     const modelName = process.env.REACT_APP_LLM_MODEL || 'gpt-3.5-turbo';
+
+    const openai = getOpenAIClient();
 
     const completion = await openai.chat.completions.create({
       model: modelName,

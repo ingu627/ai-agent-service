@@ -1,5 +1,5 @@
 import React from 'react';
-import { MessageCircle, Zap, Lightbulb, Code, FileText, Search, BarChart } from 'lucide-react';
+import { Sparkles, Code, FileText, Search, BarChart } from 'lucide-react';
 
 interface WelcomeMessageProps {
   onSuggestionClick: (suggestion: string) => void;
@@ -8,95 +8,59 @@ interface WelcomeMessageProps {
 const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ onSuggestionClick }) => {
   const suggestions = [
     {
-      icon: <Search className="w-4 h-4" />,
-      text: "최신 기술 트렌드 검색해줘",
-      prompt: "2025년 최신 AI 기술 트렌드에 대해 알려주세요."
+      icon: <FileText className="h-4 w-4" />,
+      title: '문서 작성',
+      prompt: '에이전트 기능을 소개하는 README 초안을 작성해줘.'
     },
     {
-      icon: <Code className="w-4 h-4" />,
-      text: "Python 문법 알려줘",
-      prompt: "개발자에게 필요한 파이썬 문법을 알려주세요."
+      icon: <Search className="h-4 w-4" />,
+      title: '버그 찾기',
+      prompt: '프론트엔드에서 발생할 수 있는 3가지 잠재적 버그를 진단해줘.'
     },
     {
-      icon: <FileText className="w-4 h-4" />,
-      text: "보고서 작성 도움이 필요해",
-      prompt: "효과적인 비즈니스 보고서 작성 방법을 알려주세요."
+      icon: <Code className="h-4 w-4" />,
+      title: 'API 설계',
+      prompt: 'Python FastAPI 백엔드와 연동할 `/api/chat/stream` 엔드포인트 스펙을 정리해줘.'
     },
     {
-      icon: <Lightbulb className="w-4 h-4" />,
-      text: "창의적인 아이디어 제안해줘",
-      prompt: "새로운 사업 아이디어를 브레인스토밍해주세요."
-    },
-    {
-      icon: <BarChart className="w-4 h-4" />,
-      text: "데이터 분석 도움이 필요해",
-      prompt: "효과적인 데이터 시각화 방법을 알려주세요."
-    },
-    {
-      icon: <Zap className="w-4 h-4" />,
-      text: "현재 주가 정보 찾아줘",
-      prompt: "현재 주요 기술주 주가 동향을 알려주세요."
+      icon: <BarChart className="h-4 w-4" />,
+      title: '대시보드 아이디어',
+      prompt: 'AI 에이전트 성능 대시보드에 필요한 핵심 KPI를 5개 제안해줘.'
     }
   ];
 
   return (
-    <div className="text-center py-8 px-4">
-      <div className="mb-6">
-        <div className="w-16 h-16 flex items-center justify-center mx-auto mb-4">
-          <img
-            src="/logo.png"
-            alt="AI Agent Logo"
-            className="w-16 h-16 object-contain"
-          />
+    <div className="flex h-full flex-col items-center justify-center gap-10 text-center text-slate-100">
+      <div className="flex flex-col items-center gap-5">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/5 text-indigo-200">
+          <Sparkles className="h-6 w-6" />
         </div>
-        <h2 className="text-2xl font-semibold text-notion-gray-800 mb-2">
-          AI Agent에 오신 것을 환영합니다!
-        </h2>
-        <p className="text-notion-gray-600 max-w-md mx-auto mb-4">
-          OpenAI GPT와 웹 검색 기능이 통합된 지능형 AI 에이전트입니다.
-          무엇이든 물어보세요!
-        </p>
-        <div className="flex items-center justify-center space-x-4 text-xs text-notion-gray-500">
-          <div className="flex items-center space-x-1">
-            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-            <span>실시간 웹 검색</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-            <span>GPT 기반 AI</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-            <span>다중 능력</span>
-          </div>
+        <div>
+          <h2 className="text-3xl font-semibold text-white">에이전트에게 지시해보세요</h2>
+          <p className="mt-3 max-w-2xl text-sm text-slate-400">
+            지금 입력하는 모든 대화는 추후 Python 백엔드로 전송할 수 있도록 정돈된 컨텍스트로 저장됩니다. 필요한 작업을 선택하거나 직접 메시지를 작성해보세요.
+          </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-4xl mx-auto mb-8">
+      <div className="flex flex-wrap justify-center gap-3">
         {suggestions.map((suggestion, index) => (
           <button
             key={index}
             onClick={() => onSuggestionClick(suggestion.prompt)}
-            className="flex items-center space-x-3 p-4 rounded-lg border border-notion-gray-200 hover:border-purple-300 hover:bg-purple-50 transition-all duration-200 text-left group"
+            className="group inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.04] px-5 py-2 text-sm text-slate-200 transition hover:border-indigo-400/60 hover:bg-indigo-500/15"
           >
-            <div className="flex-shrink-0 text-purple-600 group-hover:text-purple-700">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-indigo-200">
               {suggestion.icon}
-            </div>
-            <span className="text-sm text-notion-gray-700 font-medium group-hover:text-notion-gray-800">
-              {suggestion.text}
             </span>
+            <span className="text-sm font-medium text-white group-hover:text-indigo-100">{suggestion.title}</span>
           </button>
         ))}
       </div>
 
-      <div className="bg-notion-gray-50 rounded-lg p-4 max-w-2xl mx-auto">
-        <h3 className="text-sm font-medium text-notion-gray-800 mb-2">💡 사용 팁</h3>
-        <ul className="text-xs text-notion-gray-600 space-y-1 text-left">
-          <li>• "최신", "현재", "오늘" 등의 키워드를 사용하면 웹 검색이 자동으로 활성화됩니다</li>
-          <li>• 복잡한 질문도 단계별로 분석하고 답변해드립니다</li>
-          <li>• 대화 맥락을 기억하며 연속적인 질문에 답할 수 있습니다</li>
-        </ul>
-      </div>
+      <p className="max-w-xl text-xs leading-6 text-slate-500">
+        엔터를 눌러 전송하고, 내보내기 버튼을 활용해 Python API에서 그대로 재생할 수 있는 JSON 이력을 받아보세요.
+      </p>
     </div>
   );
 };
