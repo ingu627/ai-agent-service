@@ -2,11 +2,12 @@
 
 ![AI Agent UI](imgs/ui_agent.png)
 
-OpenAI GPT와 실시간 웹 검색이 통합된 차세대 AI 어시스턴트입니다.
+OpenAI GPT 또는 Perplexity 모델과 실시간 웹 검색이 통합된 차세대 AI 어시스턴트입니다.
 
 ## 주요 기능
 
-- **대화형 에이전트**: OpenAI Chat 모델을 사용해 맥락 있는 답변을 제공합니다. 모델은 `.env`에서 바꿀 수 있습니다.
+- **대화형 에이전트**: OpenAI 또는 Perplexity 모델을 사용해 맥락 있는 답변을 제공합니다. 모델은 `.env`에서 바꿀 수 있습니다.
+- **스트리밍 응답**: 선택한 모델의 답변을 토큰 단위로 실시간 표시합니다. Perplexity 역시 SSE 기반 스트리밍을 지원합니다.
 - **웹 검색 보조**: 최신 정보를 요구하는 질문이면 Tavily API를 통해 검색한 뒤 응답에 녹여줍니다. (API 키가 있을 때만 동작)
 - **빠른 지시 프롬프트**: 자주 쓰는 시나리오를 버튼으로 제공해 바로 요청을 보낼 수 있습니다.
 - **대화 관리**: 로컬 스토리지에 자동 저장되고, 필요하면 JSON으로 내보낼 수 있습니다.
@@ -32,7 +33,10 @@ npm install
 `.env` 파일을 생성하고 다음 내용을 추가하세요:
 
 ```env
-REACT_APP_OPENAI_API_KEY=your_openai_api_key_here
+REACT_APP_AI_PROVIDER=perplexity                    # 선택: 'openai' 또는 'perplexity' (기본값은 openai)
+REACT_APP_OPENAI_API_KEY=your_openai_api_key_here   # OpenAI 사용 시 필요
+REACT_APP_PERPLEXITY_API_KEY=your_perplexity_api_key_here # Perplexity 사용 시 필요
+REACT_APP_PERPLEXITY_MODEL=llama-3.1-sonar-small-128k-online # 선택: Perplexity 기본 모델 지정
 REACT_APP_TAVILY_API_KEY=your_tavily_api_key_here
 REACT_APP_LLM_MODEL=gpt-3.5-turbo
 # 선택 사항: Python 백엔드 연동 시 사용
@@ -42,7 +46,17 @@ REACT_APP_LLM_MODEL=gpt-3.5-turbo
 #### API 키 발급 방법
 
 - **OpenAI API**: <https://platform.openai.com/api-keys>
+- **Perplexity API**: <https://www.perplexity.ai/settings/api>
 - **Tavily Search API**: <https://tavily.com/>
+
+### OpenAI와 Perplexity 전환하기
+
+1. `.env`에서 `REACT_APP_AI_PROVIDER` 값을 `openai` 또는 `perplexity`로 지정합니다. (미지정 시 OpenAI 기본값)
+2. 각 공급자에 맞는 API 키와 모델 환경 변수를 채웁니다.
+   - OpenAI: `REACT_APP_OPENAI_API_KEY`, `REACT_APP_LLM_MODEL`
+   - Perplexity: `REACT_APP_PERPLEXITY_API_KEY`, `REACT_APP_PERPLEXITY_MODEL`
+3. 두 키가 모두 존재하는 경우에는 명시적으로 `REACT_APP_AI_PROVIDER`를 설정해 원하는 모델을 강제할 수 있습니다.
+4. 개발 서버를 재시작하면 새로운 설정이 적용됩니다.
 
 ### 4. 개발 서버 실행
 
@@ -73,7 +87,7 @@ ai_agent/
 │   ├── hooks/              # Custom React Hooks
 │   │   └── useKeyboardShortcuts.ts
 │   ├── services/           # 외부 서비스 연동
-│   │   ├── apiService.ts   # OpenAI/Tavily API
+│   │   ├── apiService.ts   # AI(Tavily, OpenAI/Perplexity) 연동
 │   │   └── storageService.ts # 로컬 저장소
 │   ├── types.ts           # TypeScript 타입 정의
 │   ├── index.css         # 글로벌 스타일
@@ -95,7 +109,7 @@ ai_agent/
 
 ### APIs & Services
 
-- **OpenAI API** - GPT 모델 활용
+- **OpenAI / Perplexity API** - 대화형 모델 활용
 - **Tavily Search API** - 실시간 웹 검색
 - **LocalStorage** - 클라이언트 데이터 저장
 
@@ -112,6 +126,8 @@ ai_agent/
 1. 하단 입력창에 요청을 적고 Enter를 누릅니다. (Shift+Enter는 줄바꿈)
 2. 필요하면 빠른 프롬프트 버튼을 눌러 바로 실행할 수도 있습니다.
 3. 결과가 마음에 들면 우측 상단의 내보내기 버튼으로 JSON을 내려받아 백엔드와 공유하세요.
+
+> 💡 **스트리밍 모드**: 모델이 스트리밍을 지원하면 응답이 한 번에 도착하지 않고 텍스트가 토큰 단위로 흘러나옵니다. Perplexity도 SSE 기반 스트리밍을 지원하므로, 긴 답변도 기다림 없이 확인할 수 있습니다.
 
 ### 키보드 단축키
 

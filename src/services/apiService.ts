@@ -3,6 +3,16 @@ import axios from 'axios';
 
 let openaiClient: OpenAI | null = null;
 
+type ChatMessage = {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+};
+
+type AIProvider = 'openai' | 'perplexity';
+
+const PERPLEXITY_API_ENDPOINT = 'https://api.perplexity.ai/chat/completions';
+const PERPLEXITY_DEFAULT_MODEL = 'llama-3.1-sonar-small-128k-online';
+
 const getOpenAIClient = () => {
   if (!openaiClient) {
     const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
@@ -18,6 +28,37 @@ const getOpenAIClient = () => {
   }
 
   return openaiClient;
+};
+
+const resolveAIProvider = (): AIProvider => {
+  const configured = process.env.REACT_APP_AI_PROVIDER?.toLowerCase();
+
+  if (configured === 'perplexity' || configured === 'openai') {
+    return configured;
+  }
+
+  if (process.env.REACT_APP_PERPLEXITY_API_KEY && !process.env.REACT_APP_OPENAI_API_KEY) {
+    return 'perplexity';
+  }
+
+  return 'openai';
+};
+
+export const getActiveAIProvider = (): AIProvider => resolveAIProvider();
+
+const getPerplexityConfig = () => {
+  const apiKey = process.env.REACT_APP_PERPLEXITY_API_KEY;
+
+  if (!apiKey) {
+    throw new Error('Perplexity API 키가 설정되지 않았습니다. 환경변수를 확인하세요.');
+  }
+
+  const model =
+    process.env.REACT_APP_PERPLEXITY_MODEL ||
+    process.env.REACT_APP_LLM_MODEL ||
+    PERPLEXITY_DEFAULT_MODEL;
+
+  return { apiKey, model };
 };
 
 // Tavily Search API 인터페이스
@@ -69,9 +110,205 @@ export const searchWeb = async (query: string): Promise<TavilySearchResult[]> =>
   }, 2, 1000);
 };
 
-// OpenAI GPT 호출 함수
+const buildSystemPrompt = async (messages: ChatMessage[], useSearch: boolean): Promise<string> => {
+  let systemPrompt = `당신은 도움이 되고 지식이 풍부한 AI 어시스턴트입니다. 
+사용자의 질문에 정확하고 유용한 답변을 제공하세요. 
+답변은 한국어로 작성하고, 구체적이고 실용적인 정보를 포함해주세요.
+현재 날짜는 2025년 9월 23일입니다.`;
+
+  if (useSearch) {
+    const lastUserMessage = [...messages].reverse().find(message => message.role === 'user');
+
+    if (lastUserMessage) {
+      try {
+        const searchResults = await searchWeb(lastUserMessage.content);
+
+        if (searchResults.length > 0) {
+          const searchContext = searchResults
+            .slice(0, 3)
+            .map(result => `제목: ${result.title}\n내용: ${result.content}\n출처: ${result.url}`)
+            .join('\n\n');
+
+          systemPrompt += `\n\n다음은 검색을 통해 얻은 최신 정보입니다:\n${searchContext}\n\n이 정보를 참고하여 답변해주세요.`;
+        }
+      } catch (searchError) {
+        console.warn('Search failed, continuing without search results:', searchError);
+      }
+    }
+  }
+
+  return systemPrompt;
+};
+
+const buildMessagesWithSystemPrompt = async (messages: ChatMessage[], useSearch: boolean): Promise<ChatMessage[]> => {
+  const systemPrompt = await buildSystemPrompt(messages, useSearch);
+
+  return [
+    { role: 'system', content: systemPrompt },
+    ...messages
+  ];
+};
+
+const callPerplexityChatCompletion = async (messages: ChatMessage[]): Promise<string> => {
+  const { apiKey, model } = getPerplexityConfig();
+
+  const { data } = await axios.post(
+    PERPLEXITY_API_ENDPOINT,
+    {
+      model,
+      messages,
+      temperature: 0.7,
+      max_tokens: 1000
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 20000
+    }
+  );
+
+  return data?.choices?.[0]?.message?.content || '죄송합니다. 응답을 생성할 수 없습니다.';
+};
+
+const callPerplexityStreamCompletion = async (
+  messages: ChatMessage[],
+  onChunk?: (chunk: string) => void
+): Promise<string> => {
+  const { apiKey, model } = getPerplexityConfig();
+
+  const response = await fetch(PERPLEXITY_API_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      Accept: 'text/event-stream'
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature: 0.7,
+      max_tokens: 1000,
+      stream: true
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Perplexity API 오류: ${response.status} ${response.statusText}`);
+  }
+
+  if (!response.body) {
+    throw new Error('Perplexity 응답 스트림을 읽을 수 없습니다.');
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let buffer = '';
+  let fullResponse = '';
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) {
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true });
+    const events = buffer.split(/\r?\n\r?\n/);
+    buffer = events.pop() ?? '';
+
+    for (const event of events) {
+      const lines = event.split(/\r?\n/);
+      for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line.startsWith('data:')) {
+          continue;
+        }
+
+        const dataStr = line.slice(5).trim();
+
+        if (!dataStr) {
+          continue;
+        }
+
+        if (dataStr === '[DONE]') {
+          await reader.cancel();
+          return fullResponse || '죄송합니다. 응답을 생성할 수 없습니다.';
+        }
+
+        try {
+          const payload = JSON.parse(dataStr);
+          const delta =
+            payload?.choices?.[0]?.delta?.content ??
+            payload?.choices?.[0]?.message?.content ??
+            '';
+
+          if (delta) {
+            fullResponse += delta;
+            onChunk?.(delta);
+          }
+        } catch (error) {
+          console.warn('Perplexity stream chunk parse failed:', error, dataStr);
+        }
+      }
+    }
+  }
+
+  if (!fullResponse) {
+    throw new Error('AI 응답을 생성하지 못했습니다.');
+  }
+
+  return fullResponse;
+};
+
+const callOpenAIChatCompletion = async (messages: ChatMessage[], modelName: string): Promise<string> => {
+  const openai = getOpenAIClient();
+
+  const completion = await openai.chat.completions.create({
+    model: modelName,
+    messages,
+    temperature: 0.7,
+    max_tokens: 1000,
+  });
+
+  return completion.choices[0]?.message?.content || '죄송합니다. 응답을 생성할 수 없습니다.';
+};
+
+const callOpenAIStreamCompletion = async (
+  messages: ChatMessage[],
+  modelName: string,
+  onChunk?: (chunk: string) => void
+): Promise<string> => {
+  const openai = getOpenAIClient();
+
+  const completion = await openai.chat.completions.create({
+    model: modelName,
+    messages,
+    temperature: 0.7,
+    max_tokens: 1000,
+    stream: true
+  });
+
+  let fullResponse = '';
+
+  for await (const chunk of completion) {
+    const content = chunk.choices[0]?.delta?.content || '';
+    if (content) {
+      fullResponse += content;
+      onChunk?.(content);
+    }
+  }
+
+  if (!fullResponse) {
+    throw new Error('AI 응답을 생성하지 못했습니다.');
+  }
+
+  return fullResponse;
+};
+
+// AI 응답 생성
 export const generateAIResponse = async (
-  messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>,
+  messages: ChatMessage[],
   useSearch: boolean = false
 ): Promise<string> => {
   const backendUrl = process.env.REACT_APP_BACKEND_URL;
@@ -98,55 +335,23 @@ export const generateAIResponse = async (
     return response;
   }
 
+  const provider = getActiveAIProvider();
+
   return retryWithBackoff(async () => {
-    let systemPrompt = `당신은 도움이 되고 지식이 풍부한 AI 어시스턴트입니다. 
-사용자의 질문에 정확하고 유용한 답변을 제공하세요. 
-답변은 한국어로 작성하고, 구체적이고 실용적인 정보를 포함해주세요.
-현재 날짜는 2025년 9월 23일입니다.`;
+    const preparedMessages = await buildMessagesWithSystemPrompt(messages, useSearch);
 
-    // 검색이 필요한 경우 최신 정보 검색
-    if (useSearch) {
-      const lastUserMessage = messages[messages.length - 1];
-      if (lastUserMessage && lastUserMessage.role === 'user') {
-        try {
-          const searchResults = await searchWeb(lastUserMessage.content);
-
-          if (searchResults.length > 0) {
-            const searchContext = searchResults
-              .slice(0, 3)
-              .map(result => `제목: ${result.title}\n내용: ${result.content}\n출처: ${result.url}`)
-              .join('\n\n');
-
-            systemPrompt += `\n\n다음은 검색을 통해 얻은 최신 정보입니다:\n${searchContext}\n\n이 정보를 참고하여 답변해주세요.`;
-          }
-        } catch (searchError) {
-          console.warn('Search failed, continuing without search results:', searchError);
-        }
-      }
+    if (provider === 'perplexity') {
+      return await callPerplexityChatCompletion(preparedMessages);
     }
 
-    // 환경변수에서 모델명 가져오기 (기본값: gpt-3.5-turbo)
     const modelName = process.env.REACT_APP_LLM_MODEL || 'gpt-3.5-turbo';
-
-    const openai = getOpenAIClient();
-
-    const completion = await openai.chat.completions.create({
-      model: modelName,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        ...messages
-      ],
-      temperature: 0.7,
-      max_tokens: 1000,
-    });
-
-    return completion.choices[0]?.message?.content || '죄송합니다. 응답을 생성할 수 없습니다.';
+    return await callOpenAIChatCompletion(preparedMessages, modelName);
   }, 3, 2000);
 };
 
-// OpenAI GPT 스트리밍 호출 함수
+// AI 응답 스트리밍
 export const generateAIResponseStream = async (
-  messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>,
+  messages: ChatMessage[],
   useSearch: boolean = false,
   onChunk?: (chunk: string) => void
 ): Promise<string> => {
@@ -154,59 +359,17 @@ export const generateAIResponseStream = async (
     throw new Error('백엔드 연동 모드에서는 스트리밍 응답이 아직 지원되지 않습니다.');
   }
 
+  const provider = getActiveAIProvider();
+
   return retryWithBackoff(async () => {
-    let systemPrompt = `당신은 도움이 되고 지식이 풍부한 AI 어시스턴트입니다. 
-사용자의 질문에 정확하고 유용한 답변을 제공하세요. 
-답변은 한국어로 작성하고, 구체적이고 실용적인 정보를 포함해주세요.
-현재 날짜는 2025년 9월 23일입니다.`;
+    const preparedMessages = await buildMessagesWithSystemPrompt(messages, useSearch);
 
-    // 검색이 필요한 경우 최신 정보 검색
-    if (useSearch) {
-      const lastUserMessage = messages[messages.length - 1];
-      if (lastUserMessage && lastUserMessage.role === 'user') {
-        try {
-          const searchResults = await searchWeb(lastUserMessage.content);
-
-          if (searchResults.length > 0) {
-            const searchContext = searchResults
-              .slice(0, 3)
-              .map(result => `제목: ${result.title}\n내용: ${result.content}\n출처: ${result.url}`)
-              .join('\n\n');
-
-            systemPrompt += `\n\n다음은 검색을 통해 얻은 최신 정보입니다:\n${searchContext}\n\n이 정보를 참고하여 답변해주세요.`;
-          }
-        } catch (searchError) {
-          console.warn('Search failed, continuing without search results:', searchError);
-        }
-      }
+    if (provider === 'perplexity') {
+      return await callPerplexityStreamCompletion(preparedMessages, onChunk);
     }
 
     const modelName = process.env.REACT_APP_LLM_MODEL || 'gpt-3.5-turbo';
-
-    const openai = getOpenAIClient();
-
-    const completion = await openai.chat.completions.create({
-      model: modelName,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        ...messages
-      ],
-      temperature: 0.7,
-      max_tokens: 1000,
-      stream: true
-    });
-
-    let fullResponse = '';
-
-    for await (const chunk of completion) {
-      const content = chunk.choices[0]?.delta?.content || '';
-      if (content) {
-        fullResponse += content;
-        onChunk?.(content);
-      }
-    }
-
-    return fullResponse || '죄송합니다. 응답을 생성할 수 없습니다.';
+    return await callOpenAIStreamCompletion(preparedMessages, modelName, onChunk);
   }, 3, 2000);
 };
 
