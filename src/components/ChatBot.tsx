@@ -3,7 +3,7 @@ import { Send, Sparkles, Download, Circle, Plus } from 'lucide-react';
 import { Message, ChatState } from '../types';
 import MessageBubble from './MessageBubble';
 import TypingIndicator from './TypingIndicator';
-import { generateAIResponse, shouldUseSearch } from '../services/apiService';
+import { generateAIResponse, shouldUseSearch, getActiveAIProvider } from '../services/apiService';
 import { saveChatHistory, loadChatHistory, clearChatHistory } from '../services/storageService';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 
@@ -29,14 +29,29 @@ const ChatBot: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const hasDirectApi = Boolean(process.env.REACT_APP_OPENAI_API_KEY);
   const backendUrl = process.env.REACT_APP_BACKEND_URL;
-  const currentModel = process.env.REACT_APP_LLM_MODEL || (backendUrl ? 'python-backend' : 'gpt-3.5-turbo');
+  const aiProvider = getActiveAIProvider();
+  const hasPerplexityKey = Boolean(process.env.REACT_APP_PERPLEXITY_API_KEY);
+  const hasOpenAIKey = Boolean(process.env.REACT_APP_OPENAI_API_KEY);
+
+  const hasDirectApi = backendUrl
+    ? false
+    : aiProvider === 'perplexity'
+      ? hasPerplexityKey
+      : hasOpenAIKey;
+
+  const currentModel = backendUrl
+    ? 'python-backend'
+    : aiProvider === 'perplexity'
+      ? (process.env.REACT_APP_PERPLEXITY_MODEL || process.env.REACT_APP_LLM_MODEL || 'llama-3.1-sonar-small-128k-online')
+      : (process.env.REACT_APP_LLM_MODEL || 'gpt-3.5-turbo');
 
   const connectionLabel = backendUrl
     ? 'Python 백엔드 연결 준비됨'
     : hasDirectApi
-      ? 'OpenAI API 연결됨'
+      ? aiProvider === 'perplexity'
+        ? 'Perplexity API 연결됨'
+        : 'OpenAI API 연결됨'
       : '연결 설정 필요';
 
   const connectionTone = backendUrl
@@ -162,9 +177,13 @@ const ChatBot: React.FC = () => {
     } catch (error) {
       console.error('Error generating AI response:', error);
 
+      const details = error instanceof Error
+        ? `\n\n세부 정보: ${error.message}`
+        : '';
+
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: '죄송합니다. AI 서비스에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.',
+        content: `죄송합니다. AI 서비스에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.${details}`,
         sender: 'ai',
         timestamp: new Date(),
       };
@@ -211,7 +230,7 @@ const ChatBot: React.FC = () => {
               <Sparkles className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-semibold text-white">Agent Console</h1>
+              <h1 className="text-2xl font-semibold text-white">hyunseokjung</h1>
             </div>
           </div>
 
