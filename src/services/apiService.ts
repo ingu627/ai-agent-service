@@ -12,6 +12,8 @@ type AIProvider = 'openai' | 'perplexity';
 
 const PERPLEXITY_API_ENDPOINT = 'https://api.perplexity.ai/chat/completions';
 const PERPLEXITY_DEFAULT_MODEL = 'llama-3.1-sonar-small-128k-online';
+const THINK_OPEN_TAG = '<think>';
+const THINK_CLOSE_TAG = '</think>';
 
 const getOpenAIClient = () => {
   if (!openaiClient) {
@@ -61,6 +63,76 @@ const getPerplexityConfig = () => {
   return { apiKey, model };
 };
 
+const createThinkingFilter = () => {
+  let inThinkingSection = false;
+  let carry = '';
+
+  const processText = (chunk: string, isFinal: boolean): string => {
+    let text = carry + chunk;
+    carry = '';
+    let output = '';
+    let index = 0;
+
+    while (index < text.length) {
+      if (inThinkingSection) {
+        const closeIndex = text.indexOf(THINK_CLOSE_TAG, index);
+
+        if (closeIndex === -1) {
+          if (!isFinal) {
+            const sliceStart = Math.max(index - (THINK_CLOSE_TAG.length - 1), 0);
+            carry = text.slice(sliceStart);
+            return output;
+          }
+
+          return output;
+        }
+
+        index = closeIndex + THINK_CLOSE_TAG.length;
+        inThinkingSection = false;
+        continue;
+      }
+
+      const openIndex = text.indexOf(THINK_OPEN_TAG, index);
+
+      if (openIndex === -1) {
+        if (!isFinal && text.length - index < THINK_OPEN_TAG.length - 1) {
+          carry = text.slice(index);
+          return output;
+        }
+
+        output += text.slice(index);
+        index = text.length;
+        break;
+      }
+
+      if (openIndex > index) {
+        output += text.slice(index, openIndex);
+      }
+
+      index = openIndex + THINK_OPEN_TAG.length;
+      inThinkingSection = true;
+    }
+
+    if (isFinal && carry) {
+      output += carry;
+      carry = '';
+    }
+
+    return output;
+  };
+
+  return {
+    push: (chunk: string) => processText(chunk, false),
+    finish: () => processText('', true)
+  };
+};
+
+const stripReasoningTags = (text: string): string => {
+  const filter = createThinkingFilter();
+  const cleaned = filter.push(text) + filter.finish();
+  return cleaned.trim();
+};
+
 // Tavily Search API 인터페이스
 interface TavilySearchResult {
   title: string;
@@ -103,7 +175,7 @@ export const searchWeb = async (query: string): Promise<TavilySearchResult[]> =>
       include_domains: [],
       exclude_domains: []
     }, {
-      timeout: 10000 // 10초 타임아웃
+      timeout: 100000 // 10초 타임아웃
     });
 
     return response.data.results || [];
@@ -158,18 +230,24 @@ const callPerplexityChatCompletion = async (messages: ChatMessage[]): Promise<st
       model,
       messages,
       temperature: 0.7,
-      max_tokens: 1000
+      max_tokens: 5000
     },
     {
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
       },
-      timeout: 20000
+      timeout: 100000
     }
   );
 
-  return data?.choices?.[0]?.message?.content || '죄송합니다. 응답을 생성할 수 없습니다.';
+  const rawContent = data?.choices?.[0]?.message?.content;
+  if (!rawContent) {
+    return '죄송합니다. 응답을 생성할 수 없습니다.';
+  }
+
+  const cleaned = stripReasoningTags(rawContent);
+  return cleaned || '죄송합니다. 응답을 생성할 수 없습니다.';
 };
 
 const callPerplexityStreamCompletion = async (
@@ -189,7 +267,7 @@ const callPerplexityStreamCompletion = async (
       model,
       messages,
       temperature: 0.7,
-      max_tokens: 1000,
+      max_tokens: 5000,
       stream: true
     })
   });
@@ -205,7 +283,8 @@ const callPerplexityStreamCompletion = async (
   const reader = response.body.getReader();
   const decoder = new TextDecoder('utf-8');
   let buffer = '';
-  let fullResponse = '';
+  let cleanedResponse = '';
+  const thinkFilter = createThinkingFilter();
 
   while (true) {
     const { value, done } = await reader.read();
@@ -232,8 +311,14 @@ const callPerplexityStreamCompletion = async (
         }
 
         if (dataStr === '[DONE]') {
+          const tail = thinkFilter.finish();
+          if (tail) {
+            cleanedResponse += tail;
+            onChunk?.(tail);
+          }
+
           await reader.cancel();
-          return fullResponse || '죄송합니다. 응답을 생성할 수 없습니다.';
+          return cleanedResponse.trim() || '죄송합니다. 응답을 생성할 수 없습니다.';
         }
 
         try {
@@ -244,8 +329,11 @@ const callPerplexityStreamCompletion = async (
             '';
 
           if (delta) {
-            fullResponse += delta;
-            onChunk?.(delta);
+            const filteredChunk = thinkFilter.push(delta);
+            if (filteredChunk) {
+              cleanedResponse += filteredChunk;
+              onChunk?.(filteredChunk);
+            }
           }
         } catch (error) {
           console.warn('Perplexity stream chunk parse failed:', error, dataStr);
@@ -254,11 +342,17 @@ const callPerplexityStreamCompletion = async (
     }
   }
 
-  if (!fullResponse) {
+  const remaining = thinkFilter.finish();
+  if (remaining) {
+    cleanedResponse += remaining;
+    onChunk?.(remaining);
+  }
+
+  if (!cleanedResponse) {
     throw new Error('AI 응답을 생성하지 못했습니다.');
   }
 
-  return fullResponse;
+  return cleanedResponse.trim();
 };
 
 const callOpenAIChatCompletion = async (messages: ChatMessage[], modelName: string): Promise<string> => {
@@ -268,10 +362,16 @@ const callOpenAIChatCompletion = async (messages: ChatMessage[], modelName: stri
     model: modelName,
     messages,
     temperature: 0.7,
-    max_tokens: 1000,
+    max_tokens: 5000,
   });
 
-  return completion.choices[0]?.message?.content || '죄송합니다. 응답을 생성할 수 없습니다.';
+  const rawContent = completion.choices[0]?.message?.content;
+  if (!rawContent) {
+    return '죄송합니다. 응답을 생성할 수 없습니다.';
+  }
+
+  const cleaned = stripReasoningTags(rawContent);
+  return cleaned || '죄송합니다. 응답을 생성할 수 없습니다.';
 };
 
 const callOpenAIStreamCompletion = async (
@@ -285,25 +385,35 @@ const callOpenAIStreamCompletion = async (
     model: modelName,
     messages,
     temperature: 0.7,
-    max_tokens: 1000,
+    max_tokens: 5000,
     stream: true
   });
 
-  let fullResponse = '';
+  let cleanedResponse = '';
+  const thinkFilter = createThinkingFilter();
 
   for await (const chunk of completion) {
     const content = chunk.choices[0]?.delta?.content || '';
     if (content) {
-      fullResponse += content;
-      onChunk?.(content);
+      const filteredChunk = thinkFilter.push(content);
+      if (filteredChunk) {
+        cleanedResponse += filteredChunk;
+        onChunk?.(filteredChunk);
+      }
     }
   }
 
-  if (!fullResponse) {
+  const remaining = thinkFilter.finish();
+  if (remaining) {
+    cleanedResponse += remaining;
+    onChunk?.(remaining);
+  }
+
+  if (!cleanedResponse) {
     throw new Error('AI 응답을 생성하지 못했습니다.');
   }
 
-  return fullResponse;
+  return cleanedResponse.trim();
 };
 
 // AI 응답 생성
@@ -318,7 +428,7 @@ export const generateAIResponse = async (
       const { data } = await axios.post(
         `${backendUrl.replace(/\/$/, '')}/chat`,
         { messages, useSearch },
-        { timeout: 20000 }
+        { timeout: 100000 }
       );
 
       if (data?.error) {
