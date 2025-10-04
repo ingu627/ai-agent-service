@@ -1,0 +1,37 @@
+[project]
+name = "ai-agent-backend"
+version = "0.1.0"
+description = "FastMCP-powered backend API for the AI Agent frontend"
+authors = [{ name = "ingu627" }]
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115.2,<0.116",
+    "fastmcp>=2.12.4",
+    "openai>=1.52.0",
+    "httpx>=0.28.1",
+    "pydantic>=2.9.2",
+    "pydantic-settings>=2.5.2",
+    "python-dotenv>=1.0.1",
+    "structlog>=24.4.0",
+    "uvicorn[standard]>=0.30.5",
+]
+
+[project.scripts]
+ai-agent-backend = "ai_agent_backend.__main__:main"
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.3.3",
+    "pytest-asyncio>=0.24.0",
+    "respx>=0.21.1",
+    "anyio>=4.6.2",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+asyncio_mode = "auto"
+pythonpath = ["src"]

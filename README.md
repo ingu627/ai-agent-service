@@ -1,6 +1,6 @@
-# AI Agent
+# AI Agent Service
 
-![AI Agent UI](imgs/ui_agent.png)
+![AI Agent UI](docs/imgs/ui_agent.png)
 
 OpenAI GPT 또는 Perplexity 모델과 실시간 웹 검색이 통합된 차세대 AI 어시스턴트입니다.
 
@@ -18,19 +18,20 @@ OpenAI GPT 또는 Perplexity 모델과 실시간 웹 검색이 통합된 차세�
 ### 1. 프로젝트 클론
 
 ```bash
-git clone https://github.com/yourusername/ai_agent.git
-cd ai_agent
+git clone https://github.com/ingu627/ai-agent-service.git
+cd ai-agent-service
 ```
 
 ### 2. 의존성 설치
 
 ```bash
+cd frontend
 npm install
 ```
 
 ### 3. 환경변수 설정
 
-`.env` 파일을 생성하고 다음 내용을 추가하세요:
+`frontend/.env` 파일을 생성하고 다음 내용을 추가하세요:
 
 ```env
 REACT_APP_AI_PROVIDER=perplexity                    # 선택: 'openai' 또는 'perplexity' (기본값은 openai)
@@ -51,7 +52,7 @@ REACT_APP_LLM_MODEL=gpt-3.5-turbo
 
 ### OpenAI와 Perplexity 전환하기
 
-1. `.env`에서 `REACT_APP_AI_PROVIDER` 값을 `openai` 또는 `perplexity`로 지정합니다. (미지정 시 OpenAI 기본값)
+1. `frontend/.env`에서 `REACT_APP_AI_PROVIDER` 값을 `openai` 또는 `perplexity`로 지정합니다. (미지정 시 OpenAI 기본값)
 2. 각 공급자에 맞는 API 키와 모델 환경 변수를 채웁니다.
    - OpenAI: `REACT_APP_OPENAI_API_KEY`, `REACT_APP_LLM_MODEL`
    - Perplexity: `REACT_APP_PERPLEXITY_API_KEY`, `REACT_APP_PERPLEXITY_MODEL`
@@ -61,10 +62,48 @@ REACT_APP_LLM_MODEL=gpt-3.5-turbo
 ### 4. 개발 서버 실행
 
 ```bash
+cd frontend
 npm start
 ```
 
 브라우저에서 `http://localhost:3000`으로 접속하세요.
+
+## Backend 실행 (선택사항)
+
+Frontend는 기본적으로 클라이언트 사이드에서 직접 OpenAI/Perplexity API를 호출합니다.
+Backend를 통해 API를 호출하려면:
+
+### 1. Backend 환경 설정
+
+```bash
+cd backend
+cp .env.example .env
+# .env 파일에 API 키 입력
+```
+
+### 2. Backend 의존성 설치
+
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Backend 서버 실행
+
+```bash
+python -m __main__
+# 또는
+uvicorn api:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### 4. Frontend에서 Backend 사용 설정
+
+`frontend/.env` 파일에 다음을 추가:
+
+```env
+REACT_APP_BACKEND_URL=http://localhost:8000
+```
+
+Frontend를 재시작하면 Backend를 통해 API 요청이 처리됩니다.
 
 ## 화면 구성
 
@@ -75,27 +114,53 @@ npm start
 ## 📁 프로젝트 구조
 
 ```text
-ai_agent/
-├── public/
-│   └── index.html
-├── src/
-│   ├── components/          # React 컴포넌트
-│   │   ├── ChatBot.tsx     # 메인 채팅 인터페이스
-│   │   ├── MessageBubble.tsx   # 메시지 버블
-│   │   ├── TypingIndicator.tsx # 타이핑 표시
-│   │   └── AIAgent.ts          # 에이전트 로직
-│   ├── hooks/              # Custom React Hooks
-│   │   └── useKeyboardShortcuts.ts
-│   ├── services/           # 외부 서비스 연동
-│   │   ├── apiService.ts   # AI(Tavily, OpenAI/Perplexity) 연동
-│   │   └── storageService.ts # 로컬 저장소
-│   ├── types.ts           # TypeScript 타입 정의
-│   ├── index.css         # 글로벌 스타일
-│   ├── index.tsx         # 앱 진입점
-│   └── App.tsx          # 메인 앱 컴포넌트
-├── .env                 # 환경변수 (git에서 제외)
-├── package.json
-└── README.md
+ai-agent-service/
+├── README.md                    # 전체 프로젝트 설명
+├── .gitignore                   # 전체 프로젝트용 gitignore
+├── frontend/                    # React 프론트엔드
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── tsconfig.json
+│   ├── tailwind.config.js
+│   ├── postcss.config.js
+│   ├── .env                     # 환경변수 (git에서 제외)
+│   ├── .env.example             # 환경변수 예시
+│   ├── public/
+│   │   └── index.html
+│   └── src/
+│       ├── components/          # React 컴포넌트
+│       │   ├── ChatBot.tsx      # 메인 채팅 인터페이스
+│       │   ├── MessageBubble.tsx   # 메시지 버블
+│       │   ├── TypingIndicator.tsx # 타이핑 표시
+│       │   ├── WelcomeMessage.tsx  # 환영 메시지
+│       │   └── AIAgent.ts          # 에이전트 로직
+│       ├── hooks/               # Custom React Hooks
+│       │   └── useKeyboardShortcuts.ts
+│       ├── services/            # 외부 서비스 연동
+│       │   ├── apiService.ts    # AI(Tavily, OpenAI/Perplexity) 연동
+│       │   └── storageService.ts # 로컬 저장소
+│       ├── types.ts             # TypeScript 타입 정의
+│       ├── index.css            # 글로벌 스타일
+│       ├── index.tsx            # 앱 진입점
+│       └── App.tsx              # 메인 앱 컴포넌트
+├── backend/                     # FastAPI 백엔드 서버
+│   ├── __init__.py
+│   ├── __main__.py              # 서버 실행 진입점
+│   ├── api.py                   # FastAPI 라우트
+│   ├── config.py                # 환경변수 설정
+│   ├── logging.py               # 로깅 설정
+│   ├── schemas.py               # Pydantic 스키마
+│   ├── search.py                # Tavily 검색 통합
+│   ├── services.py              # LLM 서비스 래퍼
+│   ├── requirements.txt         # Python 의존성
+│   ├── pyproject.toml           # 프로젝트 메타데이터
+│   ├── .env                     # 백엔드 환경변수 (git 제외)
+│   ├── .env.example             # 환경변수 예시
+│   └── README.md                # 백엔드 문서
+└── docs/                        # 문서 및 이미지
+    ├── img.png
+    └── imgs/
+        └── ui_agent.png
 ```
 
 ## 🔧 기술 스택
@@ -138,7 +203,7 @@ ai_agent/
 
 ## 🔒 보안 고려사항
 
-- API 키는 환경변수로만 관리
+- API 키는 환경변수로만 관리 (`frontend/.env`)
 - `.env` 파일은 Git에서 자동 제외
 - 클라이언트 사이드 API 호출 시 키 노출 주의
 - 민감한 정보는 대화에 포함하지 않는 것을 권장
