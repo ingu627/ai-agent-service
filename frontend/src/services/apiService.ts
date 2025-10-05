@@ -230,7 +230,7 @@ const callPerplexityChatCompletion = async (messages: ChatMessage[]): Promise<st
       model,
       messages,
       temperature: 0.7,
-      max_tokens: 5000
+      max_tokens: 10000
     },
     {
       headers: {
@@ -267,7 +267,7 @@ const callPerplexityStreamCompletion = async (
       model,
       messages,
       temperature: 0.7,
-      max_tokens: 5000,
+      max_tokens: 10000,
       stream: true
     })
   });
@@ -362,7 +362,7 @@ const callOpenAIChatCompletion = async (messages: ChatMessage[], modelName: stri
     model: modelName,
     messages,
     temperature: 0.7,
-    max_tokens: 5000,
+    max_tokens: 10000,
   });
 
   const rawContent = completion.choices[0]?.message?.content;
@@ -385,7 +385,7 @@ const callOpenAIStreamCompletion = async (
     model: modelName,
     messages,
     temperature: 0.7,
-    max_tokens: 5000,
+    max_tokens: 10000,
     stream: true
   });
 
@@ -435,7 +435,9 @@ export const generateAIResponse = async (
         throw new Error(data.error);
       }
 
-      return data?.reply || data?.response || data?.message || '';
+      const rawResponse = data?.reply || data?.response || data?.message || '';
+      // Backend 응답에서도 <think> 태그 제거
+      return stripReasoningTags(rawResponse);
     }, 3, 1500);
 
     if (!response) {

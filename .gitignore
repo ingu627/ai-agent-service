@@ -13,8 +13,8 @@
 node_modules/
 
 # 빌드 출력
-frontend/build/
-frontend/dist/
+/frontend/build/
+/frontend/dist/
 build/
 dist/
 
