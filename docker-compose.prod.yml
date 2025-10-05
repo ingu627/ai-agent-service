@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  backend:
+    image: ghcr.io/ingu627/ai-agent-service/backend:latest
+    container_name: ai-agent-backend-prod
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=production
+      - LLM_PROVIDER=${LLM_PROVIDER:-perplexity}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
+      - PERPLEXITY_MODEL=${PERPLEXITY_MODEL:-sonar-reasoning-pro}
+      - PERPLEXITY_BASE_URL=${PERPLEXITY_BASE_URL:-https://api.perplexity.ai}
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
+      - ENABLE_SEARCH=${ENABLE_SEARCH:-true}
+      - BACKEND_HOST=0.0.0.0
+      - BACKEND_PORT=8000
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-*}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_JSON=true
+    restart: always
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  frontend:
+    image: ghcr.io/ingu627/ai-agent-service/frontend:latest
+    container_name: ai-agent-frontend-prod
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  default:
+    name: ai-agent-network-prod

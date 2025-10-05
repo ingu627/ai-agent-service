@@ -224,15 +224,32 @@ ai-agent-service/
 
 ## 🏆 업데이트 로그
 
-### v1.0.0 (2025-09-23)
+### v1.0.0 (2025-10-04)
 
-- ✨ OpenAI GPT 모델 통합
+- ✨ OpenAI 및 Perplexity 모델 통합
 - 🔍 Tavily 웹 검색 API 연동
 - 🎨 Notion 스타일 UI 구현
 - 💾 로컬 저장소 기능
 - ⌨️ 키보드 단축키 지원
 - 📱 반응형 디자인
 - 🌟 글래스모피즘 적용
+- 🐳 Docker 및 GHCR 배포 지원
+- 🚀 FastAPI 백엔드 서버
+- 🧠 Reasoning 모델 `<think>` 태그 필터링
+
+## 🐳 Docker 배포
+
+Docker를 사용하여 배포할 수 있습니다. 자세한 내용은 [Docker 배포 가이드](docs/DOCKER.md)를 참고하세요.
+
+### 빠른 시작
+
+```bash
+# 로컬에서 실행
+docker-compose up -d
+
+# 프로덕션 환경 (GHCR 이미지 사용)
+docker-compose -f docker-compose.prod.yml up -d
+```
 
 ---
 
